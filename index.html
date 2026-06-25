@@ -2,10 +2,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cat Piano - Makey Makey (Com Gravador)</title>
+    <title>Cat Piano - Makey Makey (Sem Atraso de Som)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght=700&display=swap');
 
         body {
             font-family: 'Nunito', sans-serif;
@@ -496,6 +496,7 @@
         // --- Web Audio API & Sampler & Recording Setup ---
         let audioCtx;
         let audioBuffer = null;
+        let audioStartOffset = 0; // Guarda a posição exata onde o som do MP3 começa
         let activeSoundMode = 'synth'; // 'synth' ou 'mp3'
         const activeSoundNodes = {}; // Rastreia as fontes geradas por cada nota ativa
 
@@ -509,6 +510,28 @@
 
         const modeSynthBtn = document.getElementById('mode-synth');
         const modeMp3Btn = document.getElementById('mode-mp3');
+
+        // Algoritmo de Auto-Deteção de Som (Auto-Trim de Silêncio Inicial)
+        function findAudioStartThreshold(buffer, threshold = 0.005) {
+            const channels = buffer.numberOfChannels;
+            let earliestStart = -1;
+
+            for (let c = 0; c < channels; c++) {
+                const data = buffer.getChannelData(c);
+                for (let i = 0; i < data.length; i++) {
+                    if (Math.abs(data[i]) > threshold) {
+                        if (earliestStart === -1 || i < earliestStart) {
+                            earliestStart = i;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if (earliestStart === -1) return 0;
+            // Retorna a posição exata em segundos do início real do áudio
+            return earliestStart / buffer.sampleRate;
+        }
 
         // Seleção manual de modo de áudio se ambos estiverem carregados
         modeSynthBtn.addEventListener('click', () => {
@@ -534,7 +557,8 @@
 
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
+                // 'latencyHint: interactive' diz ao browser para usar latência mínima absoluta para apps interativas
+                audioCtx = new AudioContext({ latencyHint: 'interactive' });
 
                 // Nó mestre de volume (onde todas as teclas se vão ligar)
                 masterGainNode = audioCtx.createGain();
@@ -558,6 +582,10 @@
                     const arrayBuffer = await file.arrayBuffer();
                     audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
                     
+                    // Deteta onde o som realmente começa para eliminar o atraso inicial
+                    audioStartOffset = findAudioStartThreshold(audioBuffer, 0.005);
+                    console.log("Leading silence cut. Audio starts at (seconds):", audioStartOffset);
+
                     activeSoundMode = 'mp3';
                     modeMp3Btn.disabled = false;
                     modeMp3Btn.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-orange-500 text-white shadow-sm transition-all";
@@ -565,6 +593,7 @@
                 } else {
                     activeSoundMode = 'synth';
                     audioBuffer = null;
+                    audioStartOffset = 0;
                 }
 
                 // Setup inicial do Gravador
@@ -672,14 +701,14 @@
             const now = audioCtx.currentTime;
             
             const gainNode = audioCtx.createGain();
-            // Começa silencioso e sobe num ataque extremamente rápido
+            // Ataque ultra rápido de 2ms para resposta imediata ao toque
             gainNode.gain.setValueAtTime(0, now);
-            gainNode.gain.linearRampToValueAtTime(0.6, now + 0.005); 
+            gainNode.gain.linearRampToValueAtTime(0.6, now + 0.002); 
 
             const soundNodes = [];
 
             if (activeSoundMode === 'mp3' && audioBuffer) {
-                // === MODO SAMPLER MP3 ===
+                // === MODO SAMPLER MP3 (Corrigido Sem Atraso) ===
                 const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
 
@@ -687,10 +716,12 @@
                 source.playbackRate.value = freq / baseFreq;
 
                 source.connect(gainNode);
-                source.start();
+                
+                // Força a reprodução a saltar o silêncio inicial detetado automaticamente
+                source.start(now, audioStartOffset);
                 soundNodes.push(source);
             } else {
-                // === NOVO MODO SÍNTESE ACÚSTICA MULTI-HARMÓNICA (Som Super Realista) ===
+                // === MODO SÍNTESE ACÚSTICA MULTI-HARMÓNICA (Som Super Realista) ===
                 const partials = [
                     { mult: 1, gain: 0.5, decay: 2.0 },  // Fundamental
                     { mult: 2, gain: 0.25, decay: 1.2 }, // Primeiro harmónico
