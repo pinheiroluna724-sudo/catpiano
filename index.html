@@ -1,0 +1,868 @@
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Piano - Makey Makey (Com Gravador)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #3b82f6; /* Céu azul */
+            overflow: hidden;
+            touch-action: none; /* Previne scroll em ecrãs touch */
+        }
+
+        /* Formatos customizados para o gato */
+        .cat-body {
+            background: linear-gradient(180deg, #ff9800 0%, #ff8a00 100%);
+            border-radius: 45% 45% 40% 40%;
+            box-shadow: 
+                inset -10px -10px 20px rgba(0,0,0,0.1),
+                0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        .cat-ear {
+            width: 0;
+            height: 0;
+            border-left: 60px solid transparent;
+            border-right: 60px solid transparent;
+            border-bottom: 100px solid #ff9800;
+            position: absolute;
+            top: -40px;
+            z-index: -1;
+        }
+        
+        .cat-ear-inner {
+            width: 0;
+            height: 0;
+            border-left: 30px solid transparent;
+            border-right: 30px solid transparent;
+            border-bottom: 60px solid #ff7043;
+            position: absolute;
+            top: 30px;
+            left: -30px;
+        }
+
+        .cat-ear.left { left: 5%; transform: rotate(-15deg); }
+        .cat-ear.right { right: 5%; transform: rotate(15deg); }
+
+        .eye {
+            background: white;
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+        }
+
+        .pupil {
+            background: #222;
+            border-radius: 50%;
+        }
+
+        .glint {
+            background: white;
+            border-radius: 50%;
+        }
+
+        .nose {
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 25px solid #4fc3f7;
+            border-radius: 10px;
+        }
+
+        .blush {
+            background: #ff5252;
+            border-radius: 50%;
+            opacity: 0.6;
+            filter: blur(4px);
+        }
+
+        .stripe {
+            background: #e65100;
+            border-radius: 20px;
+            position: absolute;
+        }
+
+        /* Piano Keys */
+        .piano-container {
+            background: #333;
+            border-radius: 0 0 40px 40px;
+            padding: 15px;
+            padding-top: 30px;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .key {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.1s ease;
+        }
+
+        .white-key {
+            background: linear-gradient(to bottom, #fff 0%, #f0f0f0 100%);
+            border: 1px solid #ccc;
+            border-radius: 0 0 8px 8px;
+            width: 60px;
+            height: 220px;
+            margin: 0 2px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 20px;
+            z-index: 1;
+        }
+
+        .white-key:active, .white-key.active {
+            background: #e0e0e0;
+            transform: translateY(4px);
+            box-shadow: 0 0px 2px rgba(0,0,0,0.2);
+        }
+
+        .black-key {
+            background: linear-gradient(to bottom, #333 0%, #000 100%);
+            border-radius: 0 0 6px 6px;
+            width: 40px;
+            height: 140px;
+            position: absolute;
+            top: 0;
+            left: 42px;
+            z-index: 2;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 15px;
+            color: #888;
+            font-size: 10px;
+        }
+
+        .black-key:active, .black-key.active {
+            background: #222;
+            transform: translateY(2px) scaleY(0.98);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+
+        .key-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Paws */
+        .paw {
+            background: #ff9800;
+            border-radius: 50%;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border: 4px solid #f57c00;
+        }
+        
+        .paw-pad {
+            background: #ffd54f;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+
+        /* Floating Notes Animation */
+        @keyframes float {
+            0% { transform: translateY(100vh) scale(0.5) rotate(0deg); opacity: 0; }
+            20% { opacity: 0.8; }
+            80% { opacity: 0.8; }
+            100% { transform: translateY(-20vh) scale(1.2) rotate(360deg); opacity: 0; }
+        }
+
+        .music-note {
+            position: absolute;
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.6);
+            animation: float linear infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Makey Makey Label */
+        .makey-label {
+            font-family: 'Fredoka One', cursive;
+            background: #ffeb3b;
+            color: #d32f2f;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            border: 2px solid #fbc02d;
+            margin-top: 5px;
+        }
+
+        /* Overlay */
+        #start-overlay {
+            backdrop-filter: blur(5px);
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f97316;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Gravação Piscante */
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.1); }
+        }
+        .recording-dot {
+            animation: pulse-red 1.2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center h-screen relative">
+
+    <!-- Overlay de Início -->
+    <div id="start-overlay" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/75 text-white">
+        <h1 class="text-5xl font-bold mb-4 font-['Fredoka_One'] text-yellow-400 drop-shadow-lg text-center">Cat Piano Makey Makey</h1>
+        <p class="text-xl mb-6 text-center px-4">Ligue o seu Makey Makey e escolha o tipo de som de piano preferido!</p>
+
+        <!-- Campo de upload opcional para o MP3 -->
+        <div class="mb-8 bg-white/10 p-5 rounded-2xl text-center backdrop-blur-md border border-white/20 shadow-lg max-w-md mx-4">
+            <label for="audio-upload" class="block text-lg mb-2 font-bold text-orange-300">
+                🎵 Usar Som do seu Ficheiro MP3 (Opcional):
+            </label>
+            <input type="file" id="audio-upload" accept="audio/*" class="block w-full text-sm text-gray-200
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-bold
+                file:bg-orange-500 file:text-white
+                hover:file:bg-orange-600 cursor-pointer">
+            <p class="text-xs mt-3 text-gray-300">Caso não escolha nenhum ficheiro, usaremos o nosso <b>Piano Digital Acústico Sintetizado</b> de alta qualidade.</p>
+        </div>
+
+        <button id="start-btn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-10 rounded-full text-2xl transition-transform hover:scale-105 shadow-xl border-4 border-orange-300 flex items-center justify-center">
+            <span>Iniciar Piano</span>
+            <div id="loading-spinner" class="loader hidden"></div>
+        </button>
+        <p id="loading-text" class="text-sm mt-4 text-orange-300 hidden">A processar o som do piano...</p>
+    </div>
+
+    <!-- Cenário de Fundo (Arbustos) -->
+    <div class="absolute bottom-0 w-full h-[40vh] bg-green-500 rounded-t-[100%] scale-x-150 z-0"></div>
+    <div class="absolute bottom-0 w-full h-[20vh] bg-green-600 rounded-t-[100%] scale-x-110 z-0"></div>
+
+    <!-- Notas musicais flutuantes geradas via JS -->
+    <div id="notes-container" class="absolute inset-0 overflow-hidden z-0"></div>
+
+    <!-- NOVO: Painel de Gravação de Áudio (Top Left) -->
+    <div class="absolute top-4 left-4 bg-white/95 p-4 rounded-2xl shadow-xl z-20 backdrop-blur-sm border border-red-100 flex flex-col gap-3 w-80 max-w-full">
+        <div class="flex items-center justify-between">
+            <span class="font-bold text-sm text-red-500 flex items-center gap-2">
+                <span id="recording-status-dot" class="w-3 h-3 bg-gray-400 rounded-full"></span>
+                <span id="recording-status-text">Gravador Pronto</span>
+            </span>
+            <span id="recording-timer" class="text-xs font-mono text-gray-500 hidden">00:00</span>
+        </div>
+        
+        <div class="flex gap-2">
+            <button id="btn-record-start" class="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition-all">
+                <span>⏺️ Gravar</span>
+            </button>
+            <button id="btn-record-stop" class="flex-1 bg-gray-300 text-gray-500 text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition-all cursor-not-allowed" disabled>
+                <span>⏹️ Parar</span>
+            </button>
+        </div>
+
+        <!-- Player e Botão de Download (Oculto até haver gravação) -->
+        <div id="playback-container" class="hidden flex flex-col gap-2 pt-2 border-t border-gray-200">
+            <span class="text-xs font-bold text-gray-600">Sua Gravação:</span>
+            <audio id="recorded-audio" controls class="w-full h-8"></audio>
+            <a id="btn-download-audio" class="bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 px-3 rounded-lg text-center flex items-center justify-center gap-1.5 shadow transition-all cursor-pointer">
+                <span>💾 Descarregar Música (.webm)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Painel de Seleção de Som Rápido (Top Right) -->
+    <div class="absolute top-4 right-4 bg-white/95 p-3 rounded-xl shadow-lg z-20 backdrop-blur-sm flex flex-col gap-2 border border-orange-200">
+        <span class="font-bold text-xs text-orange-600 uppercase tracking-wider">Modo de Som Ativo</span>
+        <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+            <button id="mode-synth" class="px-3 py-1.5 text-xs font-bold rounded-md bg-orange-500 text-white shadow-sm transition-all">
+                🎹 Piano Sintetizado
+            </button>
+            <button id="mode-mp3" class="px-3 py-1.5 text-xs font-bold rounded-md text-gray-600 transition-all opacity-50" disabled>
+                📁 Amostra MP3
+            </button>
+        </div>
+    </div>
+
+    <!-- Container Principal do Gato -->
+    <div class="relative z-10 w-[750px] mt-10">
+        
+        <!-- Corpo do Gato -->
+        <div class="cat-body w-full relative pt-12 pb-8 px-10 flex flex-col items-center border-b-8 border-orange-700">
+            
+            <!-- Orelhas -->
+            <div class="cat-ear left"><div class="cat-ear-inner"></div></div>
+            <div class="cat-ear right"><div class="cat-ear-inner"></div></div>
+
+            <!-- Listras Laterais -->
+            <div class="stripe w-4 h-12 left-8 top-20 rotate-[60deg]"></div>
+            <div class="stripe w-4 h-10 left-10 top-36 rotate-[45deg]"></div>
+            <div class="stripe w-4 h-12 right-8 top-20 -rotate-[60deg]"></div>
+            <div class="stripe w-4 h-10 right-10 top-36 -rotate-[45deg]"></div>
+
+            <!-- Rosto -->
+            <div class="flex flex-col items-center w-full mb-6 relative">
+                <!-- Olhos -->
+                <div class="flex justify-between w-[50%] mb-2 z-10">
+                    <div class="eye w-24 h-24 flex items-center justify-center relative">
+                        <div class="absolute -top-2 left-4 w-2 h-4 bg-black rotate-[-30deg] rounded-full"></div>
+                        <div class="absolute -top-3 left-10 w-2 h-5 bg-black rounded-full"></div>
+                        
+                        <div class="pupil w-14 h-14 relative">
+                            <div class="glint w-4 h-4 absolute top-2 right-2"></div>
+                            <div class="glint w-2 h-2 absolute bottom-3 left-3"></div>
+                        </div>
+                    </div>
+                    <div class="eye w-24 h-24 flex items-center justify-center relative">
+                        <div class="absolute -top-3 right-10 w-2 h-5 bg-black rounded-full"></div>
+                        <div class="absolute -top-2 right-4 w-2 h-4 bg-black rotate-[30deg] rounded-full"></div>
+
+                        <div class="pupil w-14 h-14 relative">
+                            <div class="glint w-4 h-4 absolute top-2 right-2"></div>
+                            <div class="glint w-2 h-2 absolute bottom-3 left-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bochechas e Nariz -->
+                <div class="flex justify-between items-center w-[60%] -mt-6">
+                    <div class="blush w-16 h-10"></div>
+                    <div class="nose z-10 mt-4 relative">
+                        <!-- Bigodes -->
+                        <div class="absolute top-2 -left-20 w-16 h-1 bg-black/30 rounded-full rotate-12"></div>
+                        <div class="absolute top-6 -left-24 w-20 h-1 bg-black/30 rounded-full -rotate-6"></div>
+                        <div class="absolute top-2 -right-20 w-16 h-1 bg-black/30 rounded-full -rotate-12"></div>
+                        <div class="absolute top-6 -right-24 w-20 h-1 bg-black/30 rounded-full rotate-6"></div>
+                    </div>
+                    <div class="blush w-16 h-10"></div>
+                </div>
+            </div>
+
+            <!-- Teclado do Piano -->
+            <div class="piano-container flex w-full justify-center relative z-20">
+                
+                <!-- Dó (C4) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="261.63" data-key="ArrowLeft">
+                        <span class="text-xl font-bold text-gray-700">DÓ</span>
+                        <div class="makey-label shadow">←</div>
+                    </div>
+                    <div class="key black-key" data-note="277.18" data-key="1">DÓ#</div>
+                </div>
+
+                <!-- Ré (D4) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="293.66" data-key="ArrowUp">
+                        <span class="text-xl font-bold text-gray-700">RÉ</span>
+                        <div class="makey-label shadow">↑</div>
+                    </div>
+                    <div class="key black-key" data-note="311.13" data-key="2">RÉ#</div>
+                </div>
+
+                <!-- Mi (E4) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="329.63" data-key="ArrowRight">
+                        <span class="text-xl font-bold text-gray-700">MI</span>
+                        <div class="makey-label shadow">→</div>
+                    </div>
+                </div>
+
+                <!-- Fá (F4) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="349.23" data-key="ArrowDown">
+                        <span class="text-xl font-bold text-gray-700">FÁ</span>
+                        <div class="makey-label shadow">↓</div>
+                    </div>
+                    <div class="key black-key" data-note="369.99" data-key="3">FÁ#</div>
+                </div>
+
+                <!-- Sol (G4) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="392.00" data-key=" ">
+                        <span class="text-xl font-bold text-gray-700">SOL</span>
+                        <div class="makey-label shadow text-xs">Espaço</div>
+                    </div>
+                    <div class="key black-key" data-note="415.30" data-key="4">SOL#</div>
+                </div>
+
+                <!-- Lá (A4) - Mapeado para o CLIQUE do rato -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="440.00" data-key="Click">
+                        <span class="text-xl font-bold text-gray-700">LÁ</span>
+                        <div class="makey-label shadow text-xs">Click</div>
+                    </div>
+                    <div class="key black-key" data-note="466.16" data-key="5">LÁ#</div>
+                </div>
+
+                <!-- Sí (B4) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="493.88" data-key="w">
+                        <span class="text-xl font-bold text-gray-700">SÍ</span>
+                        <div class="makey-label shadow text-xs">W</div>
+                    </div>
+                </div>
+
+                <!-- Dó (C5) -->
+                <div class="key-wrapper">
+                    <div class="key white-key" data-note="523.25" data-key="a">
+                        <span class="text-xl font-bold text-gray-700">DÓ</span>
+                        <div class="makey-label shadow text-xs">A</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Patas do Gato (Sobrepostas ao teclado) -->
+        <div class="absolute -bottom-8 -left-6 z-30">
+            <div class="paw w-32 h-32 flex flex-col items-center justify-center gap-2">
+                <div class="flex gap-2">
+                    <div class="paw-pad w-6 h-6 rounded-full bg-blue-500 border-2 border-blue-600"></div>
+                    <div class="paw-pad w-6 h-6 rounded-full bg-red-500 border-2 border-red-600"></div>
+                </div>
+                <div class="paw-pad w-16 h-12 rounded-[50%] mt-1 bg-yellow-400">
+                    <div class="w-full h-full flex flex-col justify-center items-center gap-1 opacity-50">
+                        <div class="w-10 h-1 bg-orange-600 rounded-full"></div>
+                        <div class="w-10 h-1 bg-orange-600 rounded-full"></div>
+                        <div class="w-10 h-1 bg-orange-600 rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute -bottom-8 -right-6 z-30">
+            <div class="paw w-32 h-32 flex flex-col items-center justify-center gap-2">
+                <div class="flex gap-2">
+                    <div class="paw-pad w-6 h-6 rounded-full bg-red-500 border-2 border-red-600"></div>
+                    <div class="paw-pad w-5 h-5 mb-1 clip-star bg-yellow-400 border-2 border-yellow-500" style="clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);"></div>
+                    <div class="paw-pad w-6 h-6 rounded-full bg-blue-500 border-2 border-blue-600"></div>
+                </div>
+                <div class="paw-pad w-16 h-12 rounded-[50%] mt-1 bg-yellow-400">
+                    <div class="w-full h-full flex flex-col justify-center items-center gap-1 opacity-50">
+                        <div class="w-10 h-1 bg-orange-600 rounded-full"></div>
+                        <div class="w-10 h-1 bg-orange-600 rounded-full"></div>
+                        <div class="w-10 h-1 bg-orange-600 rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Microfone Falso -->
+            <div class="absolute -right-8 bottom-16 -rotate-12 z-0">
+                <div class="w-16 h-16 bg-purple-800 rounded-full border-4 border-purple-900 shadow-lg absolute -top-12 -left-4">
+                    <div class="w-full h-2 bg-purple-900 absolute top-1/2"></div>
+                </div>
+                <div class="w-8 h-20 bg-orange-500 border-2 border-orange-600 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Logo na Base -->
+        <div class="absolute -bottom-16 w-full flex justify-center z-40">
+            <div class="bg-white px-6 py-2 rounded-full shadow-lg">
+                <h2 class="text-3xl font-['Fredoka_One']">
+                    <span class="text-orange-500">Cat</span><span class="text-gray-800">Piano</span>
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instruções adicionais do site -->
+    <div class="absolute bottom-4 right-4 bg-white/80 p-4 rounded-xl shadow-lg z-20 backdrop-blur-sm max-w-xs text-xs">
+        <h3 class="font-bold text-gray-800 mb-1">💡 Dica de Gravação</h3>
+        <p class="text-gray-600">O gravador captura apenas os sons de piano digitais ou MP3 sem gravar vozes do exterior. Toque à vontade!</p>
+    </div>
+
+    <script>
+        // --- Web Audio API & Sampler & Recording Setup ---
+        let audioCtx;
+        let audioBuffer = null;
+        let activeSoundMode = 'synth'; // 'synth' ou 'mp3'
+        const activeSoundNodes = {}; // Rastreia as fontes geradas por cada nota ativa
+
+        // Nós de Roteamento Global (Para Gravação de Fluxo Interno)
+        let masterGainNode;
+        let mediaStreamDestination;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let timerInterval;
+        let secondsRecorded = 0;
+
+        const modeSynthBtn = document.getElementById('mode-synth');
+        const modeMp3Btn = document.getElementById('mode-mp3');
+
+        // Seleção manual de modo de áudio se ambos estiverem carregados
+        modeSynthBtn.addEventListener('click', () => {
+            activeSoundMode = 'synth';
+            modeSynthBtn.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-orange-500 text-white shadow-sm transition-all";
+            modeMp3Btn.className = "px-3 py-1.5 text-xs font-bold rounded-md text-gray-600 transition-all opacity-50";
+        });
+
+        modeMp3Btn.addEventListener('click', () => {
+            if (audioBuffer) {
+                activeSoundMode = 'mp3';
+                modeMp3Btn.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-orange-500 text-white shadow-sm transition-all";
+                modeSynthBtn.className = "px-3 py-1.5 text-xs font-bold rounded-md text-gray-600 transition-all opacity-50";
+            }
+        });
+
+        // Inicializa o Áudio e cria nós globais
+        document.getElementById('start-btn').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const spanText = btn.querySelector('span');
+            const spinner = document.getElementById('loading-spinner');
+            const loadingText = document.getElementById('loading-text');
+
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+
+                // Nó mestre de volume (onde todas as teclas se vão ligar)
+                masterGainNode = audioCtx.createGain();
+                masterGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                masterGainNode.connect(audioCtx.destination);
+
+                // Nó de Destino do Fluxo de Media (Para a Gravação Interna)
+                mediaStreamDestination = audioCtx.createMediaStreamDestination();
+                masterGainNode.connect(mediaStreamDestination);
+
+                const fileInput = document.getElementById('audio-upload');
+
+                // Se o utilizador submeteu o ficheiro mp3, processamos o ficheiro
+                if (fileInput.files.length > 0) {
+                    spanText.innerText = "A carregar...";
+                    spinner.classList.remove('hidden');
+                    loadingText.classList.remove('hidden');
+                    btn.disabled = true;
+
+                    const file = fileInput.files[0];
+                    const arrayBuffer = await file.arrayBuffer();
+                    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    
+                    activeSoundMode = 'mp3';
+                    modeMp3Btn.disabled = false;
+                    modeMp3Btn.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-orange-500 text-white shadow-sm transition-all";
+                    modeSynthBtn.className = "px-3 py-1.5 text-xs font-bold rounded-md text-gray-600 transition-all opacity-50";
+                } else {
+                    activeSoundMode = 'synth';
+                    audioBuffer = null;
+                }
+
+                // Setup inicial do Gravador
+                setupRecorder();
+
+                document.getElementById('start-overlay').style.display = 'none';
+            } catch (error) {
+                console.error("Erro ao carregar o áudio:", error);
+                alert("Ocorreu um erro ao processar o seu MP3. Usando o Piano Sintetizado Acústico por predefinição!");
+                audioBuffer = null;
+                activeSoundMode = 'synth';
+                document.getElementById('start-overlay').style.display = 'none';
+            }
+        });
+
+        // Configuração do MediaRecorder
+        function setupRecorder() {
+            const btnStart = document.getElementById('btn-record-start');
+            const btnStop = document.getElementById('btn-record-stop');
+            const statusDot = document.getElementById('recording-status-dot');
+            const statusText = document.getElementById('recording-status-text');
+            const timerEl = document.getElementById('recording-timer');
+            const playbackContainer = document.getElementById('playback-container');
+            const audioPlayer = document.getElementById('recorded-audio');
+            const downloadLink = document.getElementById('btn-download-audio');
+
+            mediaRecorder = new MediaRecorder(mediaStreamDestination.stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                const audioURL = URL.createObjectURL(blob);
+                
+                audioPlayer.src = audioURL;
+                downloadLink.href = audioURL;
+                downloadLink.download = 'cat-piano-recording.webm';
+
+                // Mostra o player e botão de download
+                playbackContainer.classList.remove('hidden');
+            };
+
+            btnStart.addEventListener('click', () => {
+                if (!audioCtx) return;
+                recordedChunks = [];
+                
+                // Ativar gravação
+                mediaRecorder.start();
+                
+                // Alterar Estado de UI
+                statusDot.className = "w-3 h-3 bg-red-500 rounded-full recording-dot";
+                statusText.innerText = "A gravar som...";
+                statusText.className = "font-bold text-sm text-red-500";
+                
+                btnStart.disabled = true;
+                btnStart.className = "flex-1 bg-red-300 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow cursor-not-allowed";
+                
+                btnStop.disabled = false;
+                btnStop.className = "flex-1 bg-gray-800 hover:bg-gray-950 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition-all";
+                
+                playbackContainer.classList.add('hidden');
+
+                // Cronómetro de Gravação
+                secondsRecorded = 0;
+                timerEl.classList.remove('hidden');
+                timerEl.innerText = "00:00";
+                clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    secondsRecorded++;
+                    const mins = String(Math.floor(secondsRecorded / 60)).padStart(2, '0');
+                    const secs = String(secondsRecorded % 60).padStart(2, '0');
+                    timerEl.innerText = `${mins}:${secs}`;
+                }, 1000);
+            });
+
+            btnStop.addEventListener('click', () => {
+                if (mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+
+                // Parar Cronómetro
+                clearInterval(timerInterval);
+                timerEl.classList.add('hidden');
+
+                // Reset de UI
+                statusDot.className = "w-3 h-3 bg-green-500 rounded-full";
+                statusText.innerText = "Gravação Concluída!";
+                statusText.className = "font-bold text-sm text-green-600";
+
+                btnStart.disabled = false;
+                btnStart.className = "flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow transition-all";
+
+                btnStop.disabled = true;
+                btnStop.className = "flex-1 bg-gray-300 text-gray-500 text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow cursor-not-allowed";
+            });
+        }
+
+        // Função para tocar a nota baseada no ficheiro de áudio ou sintetizador
+        function playTone(freq) {
+            if (!audioCtx) return null;
+            const now = audioCtx.currentTime;
+            
+            const gainNode = audioCtx.createGain();
+            // Começa silencioso e sobe num ataque extremamente rápido
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.6, now + 0.005); 
+
+            const soundNodes = [];
+
+            if (activeSoundMode === 'mp3' && audioBuffer) {
+                // === MODO SAMPLER MP3 ===
+                const source = audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+
+                const baseFreq = 261.63; 
+                source.playbackRate.value = freq / baseFreq;
+
+                source.connect(gainNode);
+                source.start();
+                soundNodes.push(source);
+            } else {
+                // === NOVO MODO SÍNTESE ACÚSTICA MULTI-HARMÓNICA (Som Super Realista) ===
+                const partials = [
+                    { mult: 1, gain: 0.5, decay: 2.0 },  // Fundamental
+                    { mult: 2, gain: 0.25, decay: 1.2 }, // Primeiro harmónico
+                    { mult: 3, gain: 0.15, decay: 0.8 }, // Segundo...
+                    { mult: 4, gain: 0.08, decay: 0.5 },
+                    { mult: 5, gain: 0.04, decay: 0.3 },
+                    { mult: 6, gain: 0.02, decay: 0.15 }
+                ];
+
+                partials.forEach(p => {
+                    const osc = audioCtx.createOscillator();
+                    const partialGain = audioCtx.createGain();
+
+                    osc.type = 'sine'; // Ondas puras misturadas criam um som de corda ressonante limpo
+                    osc.frequency.setValueAtTime(freq * p.mult, now);
+
+                    partialGain.gain.setValueAtTime(p.gain, now);
+                    // Decaimento exponencial natural para simular a vibração física que se dissipa
+                    partialGain.gain.exponentialRampToValueAtTime(0.001, now + p.decay);
+
+                    osc.connect(partialGain);
+                    partialGain.connect(gainNode);
+                    
+                    osc.start();
+                    soundNodes.push(osc);
+                });
+
+                // Ruído do "Martelo": adiciona um pequeno clique de alta frequência no ataque
+                const hammer = audioCtx.createOscillator();
+                const hammerGain = audioCtx.createGain();
+                
+                hammer.type = 'triangle';
+                hammer.frequency.setValueAtTime(freq * 8, now); // Pitch bastante alto
+                hammerGain.gain.setValueAtTime(0.12, now);
+                // Extingue-se em apenas 30ms para dar aquele "toque inicial" da madeira na corda
+                hammerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+                hammer.connect(hammerGain);
+                hammerGain.connect(gainNode);
+                hammer.start();
+                soundNodes.push(hammer);
+            }
+
+            // Conecta a nota tocada ao masterGainNode de gravação/áudio em vez da saída direta
+            gainNode.connect(masterGainNode);
+
+            return { nodes: soundNodes, gainNode: gainNode };
+        }
+
+        // Função para parar uma nota de forma natural (Abafador de Pedal - Damper)
+        function stopTone(soundObj) {
+            if (!soundObj || !audioCtx) return;
+            const now = audioCtx.currentTime;
+            
+            // Em vez de cortar brutalmente, simulamos o abafador do pedal de piano (cerca de 100 milissegundos)
+            soundObj.gainNode.gain.cancelScheduledValues(now);
+            soundObj.gainNode.gain.setValueAtTime(soundObj.gainNode.gain.value, now);
+            soundObj.gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            
+            // Desliga os osciladores/fontes de forma segura após o fadeout terminar
+            setTimeout(() => {
+                soundObj.nodes.forEach(node => {
+                    try {
+                        node.stop();
+                    } catch (e) {
+                        // Ignora se já estiver parado
+                    }
+                });
+            }, 120);
+        }
+
+        // --- Interação do Teclado ---
+        const keys = document.querySelectorAll('.key');
+
+        function triggerNoteStart(keyElement) {
+            const note = keyElement.getAttribute('data-note');
+            const dataKey = keyElement.getAttribute('data-key');
+            
+            // Se a nota já estiver a tocar, paramos a anterior para tocar a nova imediatamente (permite repetição rápida)
+            if (activeSoundNodes[dataKey]) {
+                stopTone(activeSoundNodes[dataKey]);
+            }
+            
+            keyElement.classList.add('active');
+            activeSoundNodes[dataKey] = playTone(parseFloat(note));
+            createFloatingNote();
+        }
+
+        function triggerNoteStop(keyElement) {
+            const dataKey = keyElement.getAttribute('data-key');
+            keyElement.classList.remove('active');
+            
+            if (activeSoundNodes[dataKey]) {
+                stopTone(activeSoundNodes[dataKey]);
+                delete activeSoundNodes[dataKey];
+            }
+        }
+
+        // Eventos de Mouse/Touch para clicar na tela diretamente nas teclas
+        keys.forEach(key => {
+            key.addEventListener('mousedown', () => triggerNoteStart(key));
+            key.addEventListener('touchstart', (e) => { e.preventDefault(); triggerNoteStart(key); });
+            
+            key.addEventListener('mouseup', () => triggerNoteStop(key));
+            key.addEventListener('mouseleave', () => triggerNoteStop(key));
+            key.addEventListener('touchend', (e) => { e.preventDefault(); triggerNoteStop(key); });
+        });
+
+        // Eventos do Teclado Físico / Makey Makey (Setas, Espaço, W, A)
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat) return; // Ignora teclas mantidas pressionadas pelo SO
+            
+            let pressedKey = e.key;
+            if (pressedKey === " ") e.preventDefault(); // Impede o ecrã de descer
+            
+            const keyElement = document.querySelector(`.key[data-key="${pressedKey}"]`) || 
+                               document.querySelector(`.key[data-key="${pressedKey.toLowerCase()}"]`);
+            
+            if (keyElement) {
+                triggerNoteStart(keyElement);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            let pressedKey = e.key;
+            const keyElement = document.querySelector(`.key[data-key="${pressedKey}"]`) || 
+                               document.querySelector(`.key[data-key="${pressedKey.toLowerCase()}"]`);
+            
+            if (keyElement) {
+                triggerNoteStop(keyElement);
+            }
+        });
+
+        // Eventos para o "CLICK" do Makey Makey (Simula o botão esquerdo do rato em qualquer lado do fundo)
+        document.addEventListener('mousedown', (e) => {
+            // Só aciona a nota "LÁ" (Click) se NÃO estiver a clicar numa tecla do piano nem no botão inicial
+            if (e.target.closest('.key') || e.target.closest('#start-overlay')) return;
+            
+            const clickKey = document.querySelector('.key[data-key="Click"]');
+            if (clickKey) triggerNoteStart(clickKey);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (e.target.closest('.key') || e.target.closest('#start-overlay')) return;
+            
+            const clickKey = document.querySelector('.key[data-key="Click"]');
+            if (clickKey) triggerNoteStop(clickKey);
+        });
+
+        // --- Animação Visual (Notas flutuantes no fundo) ---
+        const notesSymbols = ['🎵', '🎶', '♩', '♬'];
+        const notesContainer = document.getElementById('notes-container');
+
+        function createFloatingNote() {
+            const noteEl = document.createElement('div');
+            noteEl.classList.add('music-note');
+            noteEl.innerText = notesSymbols[Math.floor(Math.random() * notesSymbols.length)];
+            
+            // Posição horizontal aleatória
+            const leftPos = Math.random() * 80 + 10; 
+            noteEl.style.left = `${leftPos}%`;
+            
+            // Duração aleatória para variação
+            noteEl.style.animationDuration = `${Math.random() * 2 + 3}s`;
+            
+            notesContainer.appendChild(noteEl);
+
+            // Remove o elemento após a animação (5 segundos máximo)
+            setTimeout(() => {
+                noteEl.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
